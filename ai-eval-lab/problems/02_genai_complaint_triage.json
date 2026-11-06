@@ -1,0 +1,116 @@
+{
+  "id": "genai_complaint_triage",
+  "title": "GenAI — Customer Complaint Triage",
+  "domain": "Banking · Customer Service",
+  "level": "Intermediate",
+  "duration_minutes": 60,
+  "max_attempts": 3,
+  "overview": "### Business context\nThe bank's contact centre receives thousands of complaints a day across email, app and social media. Today, agents read each complaint and route it manually — fraud cases sometimes wait hours.\n\nYou will build an **LLM-powered triage pipeline** that reads a complaint, assigns a **category** and **priority**, and is robust enough to run in production.\n\n### Allowed categories\n`Billing` · `Fraud` · `Digital Banking` · `Loans` · `Deposits`\n\n### Priorities\n`High` · `Medium` · `Low`\n\n### Helper available\nA function **`ask_llm(prompt, system=None)`** is pre-loaded in your environment. It returns the model's reply as a string. *(If the trainer hasn't configured an API key, a deterministic mock LLM answers instead — your code works the same way.)*\n\n### Rules\nComplete tasks **in order** — variables carry over between tasks.",
+  "dataset": {
+    "path": "data/complaints.csv",
+    "description": "10 labelled customer complaints",
+    "columns": {
+      "complaint_text": "Customer complaint as written",
+      "true_category": "Correct category (for evaluation)",
+      "true_priority": "Correct priority (for evaluation)"
+    }
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Design the prompt",
+      "instruction": "Write:\n- **`SYSTEM_PROMPT`** — a string that sets the model's role and rules\n- **`build_prompt(complaint: str) -> str`** — returns the user prompt for one complaint\n\nThe prompt must:\n1. Include the complaint text\n2. List all five allowed categories and three priorities\n3. Ask for the answer **as JSON** with keys `category` and `priority`\n4. Explain when something is **High** priority (e.g. fraud, money lost)\n\nPrint `build_prompt(\"My debit card was charged twice\")` to show it.",
+      "starter_code": "SYSTEM_PROMPT = \"\"\"\n\"\"\"\n\ndef build_prompt(complaint: str) -> str:\n    return f\"\"\"\nComplaint: {complaint}\n\"\"\"\n\nprint(build_prompt(\"My debit card was charged twice\"))\n",
+      "rubric": [
+        {
+          "criterion": "`build_prompt` includes the complaint",
+          "points": 2,
+          "method": "auto",
+          "check": "callable(build_prompt) and 'ATM card blocked abroad' in build_prompt('ATM card blocked abroad')"
+        },
+        {
+          "criterion": "All categories listed",
+          "points": 2,
+          "method": "auto",
+          "check": "all(c.lower() in (SYSTEM_PROMPT + build_prompt('x')).lower() for c in ['Billing','Fraud','Digital Banking','Loans','Deposits'])"
+        },
+        {
+          "criterion": "Asks for JSON output",
+          "points": 2,
+          "method": "auto",
+          "check": "'json' in (SYSTEM_PROMPT + build_prompt('x')).lower()"
+        },
+        {
+          "criterion": "Prompt quality (role, constraints, priority rules)",
+          "points": 4,
+          "method": "llm",
+          "guide": "Clear role, explicit output schema, priority definitions, instruction to choose only from allowed labels. Bonus for a short few-shot example."
+        }
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "Build a robust output parser",
+      "instruction": "LLMs don't always return clean JSON. Write **`parse_response(text: str) -> dict`** that:\n\n- extracts JSON even if it is wrapped in ```` ```json ```` fences or surrounded by extra text\n- returns a dict with exactly the keys `category` and `priority`\n- if the category is not one of the five allowed values, or parsing fails, returns **`{\"category\": \"Unknown\", \"priority\": \"Low\"}`**\n\nTest it on at least three tricky strings and print the results.",
+      "starter_code": "import json, re\n\nALLOWED = {\"Billing\", \"Fraud\", \"Digital Banking\", \"Loans\", \"Deposits\"}\n\ndef parse_response(text: str) -> dict:\n    ...\n\n# Tests\nprint(parse_response('{\"category\": \"Fraud\", \"priority\": \"High\"}'))\n",
+      "rubric": [
+        {
+          "criterion": "Parses clean JSON",
+          "points": 2,
+          "method": "auto",
+          "check": "parse_response('{\"category\": \"Fraud\", \"priority\": \"High\"}') == {'category': 'Fraud', 'priority': 'High'}"
+        },
+        {
+          "criterion": "Parses fenced JSON with extra text",
+          "points": 2,
+          "method": "auto",
+          "check": "parse_response('Sure!\\n```json\\n{\"category\": \"Loans\", \"priority\": \"Medium\"}\\n```\\nHope this helps') == {'category': 'Loans', 'priority': 'Medium'}"
+        },
+        {
+          "criterion": "Handles invalid output safely",
+          "points": 2,
+          "method": "auto",
+          "check": "parse_response('I am not sure') == {'category': 'Unknown', 'priority': 'Low'} and parse_response('{\"category\": \"Pizza\", \"priority\": \"High\"}')['category'] == 'Unknown'"
+        },
+        {
+          "criterion": "Test cases & code robustness",
+          "points": 4,
+          "method": "llm",
+          "guide": "Uses try/except, regex or brace extraction, validates labels, and demonstrates with several edge-case tests."
+        }
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "Run the pipeline & measure accuracy",
+      "instruction": "1. Load `data/complaints.csv`\n2. For each complaint call `ask_llm(build_prompt(text), system=SYSTEM_PROMPT)` and parse it with `parse_response`\n3. Store results in a DataFrame **`predictions`** with columns `complaint_text`, `predicted_category`, `predicted_priority`, `true_category`, `true_priority`\n4. Compute **`accuracy`** = share of rows where predicted category equals true category\n5. Print the table, the accuracy, and list any misclassified complaints\n\nEnd with 2–3 lines on how you would monitor this system in production (e.g. human review of High priority, drift, logging).",
+      "starter_code": "import pandas as pd\n\ncomplaints = pd.read_csv(\"data/complaints.csv\")\n\nrows = []\n# loop over complaints\n\npredictions = pd.DataFrame(rows)\naccuracy = None\n",
+      "rubric": [
+        {
+          "criterion": "All 10 complaints processed",
+          "points": 2,
+          "method": "auto",
+          "check": "len(predictions) == 10"
+        },
+        {
+          "criterion": "Required columns present",
+          "points": 2,
+          "method": "auto",
+          "check": "{'predicted_category','predicted_priority','true_category'}.issubset(predictions.columns)"
+        },
+        {
+          "criterion": "Accuracy computed correctly",
+          "points": 2,
+          "method": "auto",
+          "check": "_close(accuracy, (predictions['predicted_category'] == predictions['true_category']).mean())"
+        },
+        {
+          "criterion": "Error analysis & production monitoring",
+          "points": 4,
+          "method": "llm",
+          "guide": "Reviews misclassifications and proposes sensible guardrails: human-in-the-loop, logging, drift, cost/latency, PII masking."
+        }
+      ]
+    }
+  ]
+}
