@@ -1,0 +1,87 @@
+# AI Eval Lab — production stack
+#   app     : the Streamlit application (non-root, read-only filesystem)
+#   db      : PostgreSQL 16 (permanent storage of all results)
+#   backup  : daily compressed database backups into ./backups (kept 14 days)
+#   caddy   : HTTPS reverse proxy with automatic free certificates (Let's Encrypt)
+#   ollama  : OPTIONAL local open-source LLM judge  →  docker compose --profile llm up -d
+name: ai-eval-lab
+
+services:
+  app:
+    build: ..
+    image: ai-eval-lab:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://evallab:${POSTGRES_PASSWORD}@db:5432/evallab
+    depends_on:
+      db:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=4g
+    mem_limit: ${APP_MEMORY_LIMIT:-8g}
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    expose: ["8501"]
+    logging:
+      driver: json-file
+      options: {max-size: "20m", max-file: "5"}
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: evallab
+      POSTGRES_USER: evallab
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evallab -d evallab"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./backups:/backups
+    entrypoint: >
+      sh -c 'while true; do
+        f=/backups/evallab_$$(date +%Y-%m-%d_%H%M).sql.gz;
+        pg_dump -h db -U evallab evallab | gzip > $$f && echo "backup ok: $$f";
+        find /backups -name "*.sql.gz" -mtime +14 -delete;
+        sleep 86400; done'
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["llm"]
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+    expose: ["11434"]
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+  ollama:

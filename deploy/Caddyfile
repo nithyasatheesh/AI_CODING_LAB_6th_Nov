@@ -1,0 +1,11 @@
+# Automatic HTTPS for your domain (set DOMAIN in .env). Streamlit's websockets are proxied as-is.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy app:8501
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
