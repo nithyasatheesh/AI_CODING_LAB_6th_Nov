@@ -1,0 +1,240 @@
+{
+  "id": "loan_default_eda_ml",
+  "title": "Retail Loan Default — EDA & Machine Learning",
+  "domain": "Banking · Credit Risk",
+  "level": "Intermediate",
+  "duration_minutes": 90,
+  "max_attempts": 3,
+  "overview": "### Business context\nA retail bank has seen a rise in personal-loan defaults over the last two quarters. The Chief Risk Officer wants a **data-driven early-warning model** that flags applicants likely to default, so the credit team can tighten approval rules before disbursal.\n\nYou are the data scientist on this project. Using historical loan data, you will explore the portfolio, clean the data, engineer features, and build a classification model.\n\n### What you will deliver\n1. A clean, well-understood dataset\n2. Visual insights the credit team can act on\n3. A trained model with a test-set **ROC-AUC of 0.70 or higher**\n\n### Rules\n- Complete the tasks **in order** — each task builds on the variables from the previous one (like a notebook).\n- You can **Run** your code as many times as you like. **Submit** sends it for evaluation.\n- Use `print()` to show results, and `plt.show()` to display charts.",
+  "dataset": {
+    "path": "data/loan_data.csv",
+    "description": "1,500 historical loans · 10 columns",
+    "columns": {
+      "customer_id": "Unique customer ID",
+      "age": "Applicant age (years)",
+      "annual_income": "Annual income in ₹ (has missing values)",
+      "loan_amount": "Sanctioned loan amount in ₹",
+      "tenure_months": "Loan tenure (12–60 months)",
+      "credit_score": "Bureau score 300–900 (has missing values)",
+      "employment_type": "Salaried / Self-Employed / Business (has missing values)",
+      "debt_to_income": "Existing EMI ÷ monthly income",
+      "prior_defaults": "Number of earlier defaults",
+      "default": "Target — 1 = defaulted, 0 = repaid"
+    }
+  },
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Load & inspect the data",
+      "instruction": "Load `data/loan_data.csv` into a pandas DataFrame named **`df`**.\n\nThen print:\n- the shape of the data\n- the data types of each column\n- the count of missing values per column\n- the overall **default rate** (percentage of rows where `default == 1`)\n\nAdd one line of commentary (as a print or comment) on what you notice.",
+      "starter_code": "import pandas as pd\n\n# 1. Load the data into df\n\n\n# 2. Inspect shape, dtypes, missing values, default rate\n",
+      "rubric": [
+        {
+          "criterion": "DataFrame `df` loaded correctly",
+          "points": 3,
+          "method": "auto",
+          "check": "isinstance(df, __import__('pandas').DataFrame) and df.shape == (1500, 10)"
+        },
+        {
+          "criterion": "Missing values inspected",
+          "points": 2,
+          "method": "auto",
+          "guide": "Missing-value counts per column are printed (isna().sum() or info()).",
+          "check": "_printed(r'annual_income\\s+(51|1449)') and _printed(r'credit_score\\s+(41|1459)')"
+        },
+        {
+          "criterion": "Default rate computed correctly (~28%)",
+          "points": 3,
+          "method": "auto",
+          "guide": "The default rate is printed (about 28.2%, or 0.282).",
+          "check": "_printed(r'28\\.2|0\\.28[12]|\\b28\\s*%|28\\.\\d+\\s*%')"
+        },
+        {
+          "criterion": "Observation & code clarity",
+          "points": 2,
+          "method": "llm",
+          "guide": "Readable code with a sensible observation, e.g. class imbalance or which columns have missing values.",
+          "evidence": [
+            "(#|print).{0,80}(imbalanc|observ|notice|insight|missing|skew|majority|minority)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T2",
+      "title": "Clean missing values",
+      "instruction": "Create a cleaned copy named **`df_clean`** (do not modify `df`).\n\n- Fill missing `annual_income` and `credit_score` with the **median**\n- Fill missing `employment_type` with the **mode**\n- Keep all 1,500 rows\n\nPrint the missing-value count after cleaning to prove it worked, and justify why median (not mean) is a good choice for income.",
+      "starter_code": "# Create df_clean from df and impute missing values\n\n",
+      "rubric": [
+        {
+          "criterion": "No missing values in `df_clean`",
+          "points": 3,
+          "method": "auto",
+          "check": "df_clean.isna().sum().sum() == 0"
+        },
+        {
+          "criterion": "All rows retained",
+          "points": 2,
+          "method": "auto",
+          "check": "len(df_clean) == 1500"
+        },
+        {
+          "criterion": "Original `df` left unchanged",
+          "points": 1,
+          "method": "auto",
+          "check": "df.isna().sum().sum() > 0"
+        },
+        {
+          "criterion": "Correct imputation strategy",
+          "points": 2,
+          "method": "llm",
+          "guide": "Median for the two numeric columns and mode for employment_type, as asked.",
+          "evidence": [
+            "annual_income.{0,120}median|median.{0,120}annual_income",
+            "credit_score.{0,120}median|median.{0,120}credit_score",
+            "employment_type.{0,120}mode\\(|mode\\(.{0,120}employment_type"
+          ]
+        },
+        {
+          "criterion": "Justification for median",
+          "points": 2,
+          "method": "llm",
+          "guide": "Mentions skewness / outliers in income making the median more robust.",
+          "evidence": [
+            "skew|outlier|extreme|robust|high earner"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T3",
+      "title": "Exploratory visualisation",
+      "instruction": "Using `df_clean`, create **at least two charts** that help the credit team understand default risk, for example:\n- default rate by `employment_type`\n- distribution of `credit_score` for defaulters vs non-defaulters\n- default rate by `prior_defaults`\n\nGive every chart a title and axis labels, and call `plt.show()`.\nFinally, `print()` **two business insights** you draw from the charts.",
+      "starter_code": "import matplotlib.pyplot as plt\nimport seaborn as sns\n\n# Chart 1\n\n# Chart 2\n\nplt.show()\n\n# Print two business insights\n",
+      "rubric": [
+        {
+          "criterion": "At least two charts produced",
+          "points": 3,
+          "method": "auto",
+          "check": "_n_figures >= 2"
+        },
+        {
+          "criterion": "Charts are relevant to default risk",
+          "points": 3,
+          "method": "llm",
+          "guide": "Charts relate features to the default target, not just univariate plots of random columns.",
+          "evidence": [
+            "['\"]default['\"]"
+          ]
+        },
+        {
+          "criterion": "Titles & axis labels",
+          "points": 1,
+          "method": "llm",
+          "guide": "Each chart has a title and labelled axes in the code.",
+          "evidence": [
+            "title\\(|set_title|title\\s*=",
+            "xlabel|ylabel|set_xlabel|set_ylabel"
+          ]
+        },
+        {
+          "criterion": "Business insights stated",
+          "points": 3,
+          "method": "llm",
+          "guide": "Two clear, data-backed insights a credit manager could act on (e.g. low credit score and prior defaults drive risk).",
+          "evidence": [
+            "insight|higher|lower|more likely|less likely|increase|decrease|risk",
+            "(higher|lower|more|less|increase|decrease|risk).{0,300}(higher|lower|more|less|increase|decrease|risk)"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T4",
+      "title": "Feature engineering & train-test split",
+      "instruction": "Prepare data for modelling from `df_clean`:\n\n1. Create a new feature **`loan_to_income`** = `loan_amount / annual_income`\n2. One-hot encode `employment_type`\n3. Build **`X`** (features) and **`y`** (`default`). `X` must **not** contain `customer_id` or `default`, and must be fully numeric.\n4. Split with `train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)` into **`X_train, X_test, y_train, y_test`**\n\nPrint the shapes of the four outputs.",
+      "starter_code": "from sklearn.model_selection import train_test_split\n\n# Feature engineering\n\n\n# X, y\n\n\n# Split\n",
+      "rubric": [
+        {
+          "criterion": "`loan_to_income` feature created",
+          "points": 2,
+          "method": "auto",
+          "check": "'loan_to_income' in X.columns"
+        },
+        {
+          "criterion": "No ID / target leakage in X",
+          "points": 2,
+          "method": "auto",
+          "check": "'customer_id' not in X.columns and 'default' not in X.columns"
+        },
+        {
+          "criterion": "X is fully numeric",
+          "points": 2,
+          "method": "auto",
+          "check": "all(__import__('pandas').api.types.is_numeric_dtype(t) or t == bool for t in X.dtypes)"
+        },
+        {
+          "criterion": "Correct 80/20 split",
+          "points": 2,
+          "method": "auto",
+          "check": "len(X_test) == 300 and len(X_train) == 1200"
+        },
+        {
+          "criterion": "Code quality",
+          "points": 2,
+          "method": "llm",
+          "guide": "Clear, idiomatic pandas; uses stratify; prints shapes.",
+          "evidence": [
+            "stratify\\s*=",
+            "print\\("
+          ]
+        }
+      ]
+    },
+    {
+      "id": "T5",
+      "title": "Train & evaluate a model",
+      "instruction": "Train a classification model named **`model`** (another name works too) (Logistic Regression, Random Forest, Gradient Boosting — your choice) on `X_train, y_train`.\n\n- Compute the test-set ROC-AUC and store it in a variable named **`auc`**\n- Print a `classification_report` on the test set\n- Print the **top 5 most important features** (coefficients or feature importances)\n- In 2–3 lines, explain whether you would deploy this model and what threshold trade-off the bank should consider.\n\n🎯 Target: `auc >= 0.70`",
+      "starter_code": "from sklearn.metrics import roc_auc_score, classification_report\n\n# Train model\n\n\n# Evaluate\nauc = None\n",
+      "rubric": [
+        {
+          "criterion": "Model trained with predict_proba",
+          "points": 2,
+          "method": "auto",
+          "check": "_model() is not None"
+        },
+        {
+          "criterion": "AUC correctly computed",
+          "points": 2,
+          "method": "auto",
+          "check": "_auc_consistent(auc)"
+        },
+        {
+          "criterion": "AUC meets target (≥ 0.70)",
+          "points": 2,
+          "method": "auto",
+          "check": "float(auc) >= 0.70"
+        },
+        {
+          "criterion": "Feature importance interpreted",
+          "points": 2,
+          "method": "llm",
+          "guide": "Top features printed and make business sense.",
+          "evidence": [
+            "coef_|feature_importances_|permutation_importance"
+          ]
+        },
+        {
+          "criterion": "Deployment & threshold reasoning",
+          "points": 2,
+          "method": "llm",
+          "guide": "Discusses precision/recall or false-negative vs false-positive cost for a bank.",
+          "evidence": [
+            "threshold|cut-?off",
+            "precision|recall|false negative|false positive|cost"
+          ]
+        }
+      ]
+    }
+  ]
+}
